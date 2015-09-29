@@ -33,7 +33,7 @@ func main() {
 		if err != nil {
 			fmt.Println(err.Error())
 		}
-		fmt.Println("Found", len(keywordResult), "keywords")
+		fmt.Println("Found", len(keywordResults), "keywords")
 		time.Sleep(10 * time.Second) //craigslist doesn't like too many requests.
 	}
 }
