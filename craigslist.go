@@ -1,13 +1,13 @@
 package craigslist
 
 import (
-	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Client struct {
@@ -24,7 +24,7 @@ type Search struct {
 	Title      string
 	Location   string
 	Url        string
-	PostDate   string
+	PostDate   time.Time
 	HasPicture bool
 }
 
@@ -81,15 +81,17 @@ func (this *Client) GetSearchList(location string, category string) (searchList 
 		search.Title = row.Find(".hdrlnk").First().Text()
 
 		search.Location = strings.TrimSpace(row.Find(".l2 .pnr small").First().Text())
-		search.PostDate, _ = row.Find(".pl time").First().Attr("datetime")
+		timeStr, _ := row.Find(".pl time").First().Attr("datetime")
+		search.PostDate, _ = time.Parse("2006-01-02 15:04", timeStr)
+
 		hasPic := row.Find(".l2 .pnr .px .p").First().Text()
 		if hasPic == " pic" {
 			search.HasPicture = true
 		}
 
-		if search.Id > offset {
-			if newOffset < search.Id {
-				newOffset = search.Id
+		if search.PostDate.Unix() > offset.Unix() {
+			if newOffset.Unix() < search.PostDate.Unix() {
+				newOffset = search.PostDate
 			}
 			searchList.Searches = append(searchList.Searches, search)
 		}
@@ -102,7 +104,8 @@ func (this *Client) GetSearchList(location string, category string) (searchList 
 	return
 }
 
-func (this *Client) readSearchListFile(location string, category string) (offset int64, err error) {
+func (this *Client) readSearchListFile(location string, category string) (postDate time.Time, err error) {
+	postDate = time.Date(2000, time.January, 1, 1, 0, 0, 0, time.UTC)
 	if !this.UseStoredOffset {
 		return
 	}
@@ -114,17 +117,18 @@ func (this *Client) readSearchListFile(location string, category string) (offset
 		return
 	}
 	data, err = ioutil.ReadFile(location + "_" + category + ".dat")
-	offset, err = strconv.ParseInt(string(data), 10, 32)
+
+	postDate, err = time.Parse("2006-01-02 15:04", string(data))
 	return
 }
 
-func (this *Client) writeSearchListFile(location string, category string, offset int64) (err error) {
+func (this *Client) writeSearchListFile(location string, category string, postDate time.Time) (err error) {
 	if !this.UseStoredOffset {
 		return
 	}
 
 	//Write results to file
-	err = ioutil.WriteFile(location+"_"+category+".dat", []byte(fmt.Sprintf("%d", offset)), 0644)
+	err = ioutil.WriteFile(location+"_"+category+".dat", []byte(postDate.Format("2006-01-02 15:04")), 0644)
 	if err != nil {
 		return
 	}
